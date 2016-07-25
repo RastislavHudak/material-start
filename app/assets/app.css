@@ -1,131 +1,86 @@
-html, body {
-  font-family: 'Roboto', sans-serif;
-  font-size:14px;
-  height:100%;
-  margin: 0px;
-  padding: 0px;
+
+.grey {
+  color: #777;
 }
 
-/* Toolbar area */
-
-.menu {
-  background-color: transparent;
-  border: none;
-  height: 38px;
-  margin: 16px;
-  width: 36px;
+.facet-count {
+  color: #777;
 }
 
-
-md-toolbar h3 {
-  margin: auto;
-  font-weight: 500;
+.facet-value {
+  color: #F44336;
 }
 
-/* Sidenav area */
+md-sidenav, 
+md-sidenav.md-locked-open, 
+md-sidenav.md-closed.md-locked-open-add-active {
+    min-width: 400px !important;
+    width: 85vw !important;
+    max-width: 800px !important;
+} 
 
-md-list-item > button {
-  width:100%;
-  text-align:left !important;
+md-list-item.md-2-line.md-long-text, md-list-item.md-2-line > .md-no-style.md-long-text, md-list-item.md-3-line.md-long-text, md-list-item.md-3-line > .md-no-style.md-long-text {
+  margin: 18px;  
 }
 
-  md-list .md-button.selected {
-    color: #03a9f4;
-  }
-
-  md-sidenav  md-list {
-    padding: 0px 0px 8px 0px;
-  }
-
-
-/* Primary content area */
-
-#content {
-  overflow: hidden;
+.list-item-img {
+  margin-right: 15px;  
 }
 
-#content  {
-  padding-left: 40px;
-  padding-right: 40px;
-  padding-top: 5px;
+md-list-item.md-2-line .md-list-item-text, md-list-item.md-2-line > .md-no-style .md-list-item-text, md-list-item.md-3-line .md-list-item-text, md-list-item.md-3-line > .md-no-style .md-list-item-text {
+  margin-top: 10px; 
+  margin-bottom: 10px; 
 }
 
-#content .md-button.share {
-  background-color: transparent;
-  border: none;
-  width: 48px;
-  height: 48px;
-  margin: 8px auto 16px 0;
-  position: absolute;
-  top: 10px;
-  right: 25px;
+md-list.md-dense md-list-item, md-list.md-dense md-list-item .md-list-item-inner {
+  min-height: 20px;
 }
 
-#content md-icon.avatar {
-  margin-top: 10px;
+md-list-item, md-list-item .md-list-item-inner {
+ min-height: 20px; 
 }
 
-#content .md-button.share > md-icon {
-  fill:black;
-  width:36px;
-  height:36px;
+.facet-item {
+  height: 30px;
 }
 
-md-button.menuBtn > md-icon {
-  fill:white;
-  width:24px;
-  height:24px;
+.custom-chips md-chip {
+  position: relative; 
 }
 
-#content .md-button.share:active > md-icon {
-  background-color: #dadada;
-  border-radius: 75%;
-  padding:4px;
-  transition: all 100ms ease-out 30ms;
+.custom-chips md-chip ._md-chip-remove-container {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    margin-right: 0;
+    height: 24px; 
 }
-
-#content img {
-  display: block;
-  height: auto;
-  max-width: 500px;
+.custom-chips md-chip ._md-chip-remove-container button.facetchip {
+    position: relative;
+    height: 24px;
+    width: 24px;
+    line-height: 30px;
+    text-align: center;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 50%;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+      margin: 0;
+      transition: background 0.15s linear;
+      display: block; 
 }
-
-/* Utils */
-
-.content-wrapper {
-  position: relative;
+.custom-chips md-chip ._md-chip-remove-container button.facetchip md-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate3d(-50%, -50%, 0) scale(0.7);
+        color: white;
+        fill: white; 
 }
-
-/* Typography support coming in 0.8.0 */
-
-md-toolbar h1 {
-  font-size: 1.250em;
-  font-weight: 400;
+.custom-chips md-chip ._md-chip-remove-container button.facetchip:hover, .custom-chips md-chip ._md-chip-remove-container button.facetchip:focus {
+        background: rgba(255, 0, 0, 0.8); 
 }
-
-.avatar {
-  position: relative;
-  width: 128px;
-  height: 128px;
-  border: 1px solid #ddd;
-  border-radius: 50%;
-  display: inline-block;
-  overflow: hidden;
-  margin: 0px;
-  vertical-align: middle;
-  zoom:0.70;
-  transform: translateZ(0);
-  -webkit-transform: scale(0.70);
-  -moz-transform:scale(0.70);
-}
-
-
-md-bottom-sheet  md-icon {
-  margin-right:20px;
-}
-
-span.name {
-  font-weight: bold;
-  font-size:1.1em;
-  padding-left:5px;
+.custom-chips md-chip:not(.md-readonly) md-chip-template {
+    padding-right: 5px; 
 }
