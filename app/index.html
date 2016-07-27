@@ -30,19 +30,18 @@
     
     <md-content layout="column"  >
       
-      <md-content layout-padding flex="2">
-        <md-input-container >
-          <input ng-model="sc.q" type="text" placeholder="Search" ng-keypress="sc.enterSearch($event)">
-          <md-icon ng-click="sc.search()">search</md-icon>
-        </md-input-container>          
-      </md-content>
-
-
+      
 <md-content >
       <section layout="row"  >
 
         <md-content flex="20"> 
 
+          <md-content layout-padding >
+            <md-input-container >
+              <input ng-model="sc.q" type="text" placeholder="Search" ng-keypress="sc.enterSearch($event)">
+              <md-icon ng-click="sc.search()">search</md-icon>
+            </md-input-container>          
+          </md-content>
 
           <!-- FACETS -->
 
@@ -74,23 +73,26 @@
             <md-tab label="List">
 
               <md-list >
+              <md-subheader class="md-no-sticky">{{sc.numFound}} objects</md-subheader>
+              <md-virtual-repeat-container id="vertical-container">
 
-                <md-subheader class="md-no-sticky">{{sc.numFound}} objects</md-subheader>
+                <div md-virtual-repeat="doc in sc.dynamicItems" md-on-demand class="repeated-item" flex>
+                    <md-list-item class="md-whiteframe-1dp md-3-line md-long-text list-item" ng-click="sc.togglePreview(); sc.selectDoc = doc">                  
+                    <span class="pos">{{ doc.pos }}</span>
+                    <img ng-src="https://phaidra.univie.ac.at/preview/{{doc.pid}}///60" style="max-width:60px;" class="md-user-avatar list-item-img" alt="{{ doc.dc_title[0] }}" />
+                    <div class="md-list-item-text list-item-text" layout="column">
 
-                <md-list-item ng-repeat="doc in sc.docs" class="md-whiteframe-1dp md-3-line md-long-text list-item" ng-click="sc.togglePreview(); sc.selectDoc = doc">
-                  <img ng-src="https://phaidra.univie.ac.at/preview/{{doc.pid}}///60" style="max-width:60px;" class="md-user-avatar list-item-img" alt="{{ doc.dc_title[0] }}" />
-                  <div class="md-list-item-text list-item-text" layout="column">
+                      <h3>{{ doc.dc_title[0] }}</h3>
+                      
+                      <span class="md-body-2"><span ng-repeat="aut in doc.dc_creator track by $index">{{aut}}<span ng-if="!$last">; </span></span></span>
+                      <span class="md-body-2"><span ng-repeat="cont in doc.dc_contributor track by $index">{{cont}}<span ng-if="!$last">; </span></span></span>
+                      <span class="md-caption grey">https://phaidra.univie.ac.at/{{ doc.pid }}</span>
 
-                    <h3>{{ doc.dc_title[0] }}</h3>
-                    
-                    <span class="md-body-2"><span ng-repeat="aut in doc.dc_creator track by $index">{{aut}}<span ng-if="!$last">; </span></span></span>
-                    <span class="md-body-2"><span ng-repeat="cont in doc.dc_contributor track by $index">{{cont}}<span ng-if="!$last">; </span></span></span>
-                    <span class="md-caption grey">https://phaidra.univie.ac.at/{{ doc.pid }}</span>
-                    <span class="md-body-1">{{ doc.dc_description[0] }}</span>
-                  </div>
-                  
-                </md-list-item>
-
+                      <span class="md-body-1">{{ doc.dc_description[0] }}</span>
+                    </div>
+                    </md-list-item>
+                </div>
+              </md-virtual-repeat-container>
               </md-list>
 
               </md-tab>

@@ -80,7 +80,8 @@
     self.getFacetFilterLabel = getFacetFilterLabel;
     self.showFacetValue = showFacetValue;
     self.formatFacetValue = formatFacetValue;
-    self.removeFacetFilter = removeFacetFilter;
+    self.removeFacetFilter = removeFacetFilter;  
+    
     
     self.bytesFilter = $filter('bytes');
     self.dateFilter = $filter('date');
@@ -251,11 +252,92 @@
       
     }
 
+
     function isLicense(val){
       $log.debug('facet: ' + val);
-        return val.indexOf('All') > -1;
+      return val.indexOf('All') > -1;
     }
 
+    var DynamicItems = function() {
+      this.loadedPages = {};
+      /** @type {number} Total number of items. */
+      this.numItems = 0;
+
+      this.PAGE_SIZE = 50;               
+    };
+    
+    DynamicItems.prototype.getItemAtIndex = function(index) {
+      var pageNumber = Math.floor(index / this.PAGE_SIZE);
+      var page = this.loadedPages[pageNumber];
+      if (page) {
+        return page[index % this.PAGE_SIZE];
+        } else if (page !== null) {            
+        this.fetchPage_(pageNumber);
+      }
+    };
+    
+    DynamicItems.prototype.getLength = function() {
+      return self.numFound;
+    };
+    
+    DynamicItems.prototype.fetchPage_ = function(pageNumber) {
+    
+      this.loadedPages[pageNumber] = null;    
+      
+      var promise = searchService.search(self.q, pageNumber * this.PAGE_SIZE, this.PAGE_SIZE, self.sortdef, self.facet_filter);      
+      promise.then(
+        function(response) {
+          self.dynamicItems.loadedPages[pageNumber] = [];   
+          //self.docs = response.data.response.docs;
+          for (var i = 0; i < response.data.response.docs.length; i++) { 
+            response.data.response.docs[i]['pos'] = (pageNumber * self.dynamicItems.PAGE_SIZE) + i;
+            self.dynamicItems.loadedPages[pageNumber].push(response.data.response.docs[i]);
+          }
+          self.dynamicItems.numItems = response.data.response.numFound;
+          //self.numFound = response.data.response.numFound;
+          self.facet_counts = response.data.facet_counts;
+          self.facets = [];
+                
+          Object.keys(self.facet_counts.facet_fields).forEach(function(key,index) {
+            var facet = {
+              field: key,
+              label: self.facetLabels[key],
+              counts: []
+            }
+            for (var i = 0; i < self.facet_counts.facet_fields[key].length; i=i+2) {  
+              facet.counts.push({ 
+                value: self.facet_counts.facet_fields[key][i],
+                label: self.formatFacetValue(key, self.facet_counts.facet_fields[key][i]),
+                count: self.facet_counts.facet_fields[key][i+1]
+              });
+            }
+            self.facets.push(facet);
+          });
+
+          Object.keys(self.facet_counts.facet_ranges).forEach(function(key,index) {
+            var facet = {
+              field: key,
+              label: self.facetLabels[key],
+              counts: []
+            }
+            for (var i = 0; i < self.facet_counts.facet_ranges[key].counts.length; i=i+2) {                  
+              facet.counts.push({ 
+                value: self.facet_counts.facet_ranges[key].counts[i],
+                label: self.formatFacetValue(key, self.facet_counts.facet_ranges[key].counts[i]),
+                count: self.facet_counts.facet_ranges[key].counts[i+1]
+              });
+            }
+            self.facets.push(facet);
+          });
+        }
+        ,function(response) {
+          $log.debug('Error:' + response.status);
+        }
+      );              
+    };
+
+    self.dynamicItems = new DynamicItems();  
+    
     /**
      * Select the current avatars
      * @param menuId
