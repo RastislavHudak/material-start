@@ -20,7 +20,7 @@
           }
        })
        .controller('SearchController', [
-          'searchService', '$mdSidenav', '$mdBottomSheet', '$timeout', '$log', '$filter',
+          '$scope', 'searchService', '$mdSidenav', '$mdBottomSheet', '$timeout', '$log', '$filter', 'leafletData', 'leafletBoundsHelpers',
           SearchController
        ])
        .controller('PreviewController', [
@@ -52,7 +52,7 @@
    * @param avatarsService
    * @constructor
    */
-  function SearchController( searchService, $mdSidenav, $mdBottomSheet, $timeout, $log, $filter ) {
+  function SearchController( $scope, searchService, $mdSidenav, $mdBottomSheet, $timeout, $log, $filter, leafletData, leafletBoundsHelpers ) {
     var self = this;
 
     self.togglePreview = buildToggler('preview');
@@ -63,14 +63,12 @@
     self.q = '';
     self.selected     = null;
     self.docs        = [ ];
-    self.selectDoc   = selectDoc;
-    self.makeContact  = makeContact;
     self.search  = search;
     self.enterSearch = enterSearch;
     self.numFound = 0;
     self.start = 0;
     self.rows = 20;
-    self.sortdef = '';
+    self.sortdef = '';    
     self.facet_counts = null;
     self.facets = [];
     self.facet_filter = [];
@@ -81,8 +79,36 @@
     self.showFacetValue = showFacetValue;
     self.formatFacetValue = formatFacetValue;
     self.removeFacetFilter = removeFacetFilter;  
-    
-    
+    self.refreshMap = refreshMap;
+    self.searchSpatial = searchSpatial;
+    self.spatialNumFound = 0;
+    self.center = {
+      lat: 48.208384,
+      lng: 16.373464,
+      zoom: 4
+    }
+    self.pt = self.center.lat + ',' + self.center.lng;
+    self.d = 4000;
+
+    function refreshMap (){
+      leafletData.getMap().then(function(map) {
+        map.invalidateSize();   
+        self.searchSpatial();    
+      });      
+    }
+
+    self.markers = {};
+    /*
+      m1: {
+        lat: 59.91,
+        lng: 10.75,
+        message: "I want to travel here!",
+        focus: true,
+        draggable: false
+      }
+    }
+*/
+
     self.bytesFilter = $filter('bytes');
     self.dateFilter = $filter('date');
 
@@ -106,6 +132,116 @@
       interactiveresource: "Resource",
       sound: "Sound"
     };
+
+    var DynamicItems = function() {
+      this.loadedPages = {};
+      /** @type {number} Total number of items. */
+      this.numItems = 0;
+
+      this.PAGE_SIZE = 50;               
+    };
+    
+    DynamicItems.prototype.getItemAtIndex = function(index) {
+      var pageNumber = Math.floor(index / this.PAGE_SIZE);
+      var page = this.loadedPages[pageNumber];
+      if (page) {
+        return page[index % this.PAGE_SIZE];
+      } else if (page !== null) {            
+        this.fetchPage_(pageNumber);
+      }
+    };
+    //db.getCollection('index').update({},{$rename: { 'latlong' : 'latlon'}},{ multi: 1})
+    DynamicItems.prototype.getLength = function() {
+      return this.numItems;
+    };
+    
+    DynamicItems.prototype.fetchPage_ = function(pageNumber) {
+    
+      this.loadedPages[pageNumber] = null;    
+      
+      var promise = searchService.search(self.q, pageNumber * this.PAGE_SIZE, this.PAGE_SIZE, self.sortdef, self.facet_filter);      
+      promise.then(
+        function(response) {
+          self.dynamicItems.loadedPages[pageNumber] = [];   
+          //self.docs = response.data.response.docs;
+          for (var i = 0; i < response.data.response.docs.length; i++) { 
+            response.data.response.docs[i]['pos'] = (pageNumber * self.dynamicItems.PAGE_SIZE) + i;
+            self.dynamicItems.loadedPages[pageNumber].push(response.data.response.docs[i]);
+          }
+          self.dynamicItems.numItems = response.data.response.numFound;
+          //self.numFound = response.data.response.numFound;
+          self.facet_counts = response.data.facet_counts;
+          self.facets = [];
+                
+          Object.keys(self.facet_counts.facet_fields).forEach(function(key,index) {
+            var facet = {
+              field: key,
+              label: self.facetLabels[key],
+              counts: []
+            }
+            for (var i = 0; i < self.facet_counts.facet_fields[key].length; i=i+2) {  
+              facet.counts.push({ 
+                value: self.facet_counts.facet_fields[key][i],
+                label: self.formatFacetValue(key, self.facet_counts.facet_fields[key][i]),
+                count: self.facet_counts.facet_fields[key][i+1]
+              });
+            }
+            self.facets.push(facet);
+          });
+
+          Object.keys(self.facet_counts.facet_ranges).forEach(function(key,index) {
+            var facet = {
+              field: key,
+              label: self.facetLabels[key],
+              counts: []
+            }
+            for (var i = 0; i < self.facet_counts.facet_ranges[key].counts.length; i=i+2) {                  
+              facet.counts.push({ 
+                value: self.facet_counts.facet_ranges[key].counts[i],
+                label: self.formatFacetValue(key, self.facet_counts.facet_ranges[key].counts[i]),
+                count: self.facet_counts.facet_ranges[key].counts[i+1]
+              });
+            }
+            self.facets.push(facet);
+          });
+        }
+        ,function(response) {
+          $log.debug('Error:' + response.status);
+        }
+      );              
+    };
+    
+    function search() {
+      self.dynamicItems.fetchPage_(0);
+    }
+    self.dynamicItems = new DynamicItems(); 
+
+    function searchSpatial() {        
+      var limit = 10;
+      var promise = searchService.search(self.q, 0, limit, null, self.facet_filter, self.pt, self.d);    
+      promise.then(
+        function(response) {
+          self.markers = {}; 
+          for (var i = 0; i < response.data.response.docs.length; i++) { 
+            var doc = response.data.response.docs[i];
+            self.markers[i] = {
+              lat: doc.latlon_0_coordinate,
+              lng: doc.latlon_1_coordinate,
+              message: doc.dc_title[0],
+              focus: false,
+              draggable: false
+            }            
+          }
+          self.spatialNumFound = response.data.response.numFound;     
+          if(self.spatialNumFound > limit){
+            alert('Too many objects were found! Please zoom your map.');
+          }
+        }
+        ,function(response) {
+          $log.debug('Error:' + response.status);
+        }
+      );  
+    }
 
     self.q = 'byzanz';
     self.search();
@@ -195,191 +331,12 @@
       }
     }
 
-    function search() {
-
-        var promise = searchService.search(self.q, self.start, self.rows, self.sortdef, self.facet_filter);      
-        promise.then(
-          function(response) {
-            self.docs = response.data.response.docs;
-            self.numFound = response.data.response.numFound;
-            self.facet_counts = response.data.facet_counts;
-            self.facets = [];
-            //for (i = 0; i < self.facet_counts.facet_fields.length; i++) {
-            Object.keys(self.facet_counts.facet_fields).forEach(function(key,index) {
-
-              var facet = {
-                field: key,
-                label: self.facetLabels[key],
-                counts: []
-              }
-
-              for (var i = 0; i < self.facet_counts.facet_fields[key].length; i=i+2) {  
-                facet.counts.push({ 
-                  value: self.facet_counts.facet_fields[key][i],
-                  label: self.formatFacetValue(key, self.facet_counts.facet_fields[key][i]),
-                  count: self.facet_counts.facet_fields[key][i+1]
-                });
-              }
-
-              self.facets.push(facet);
-
-            });
-
-            Object.keys(self.facet_counts.facet_ranges).forEach(function(key,index) {
-
-              var facet = {
-                field: key,
-                label: self.facetLabels[key],
-                counts: []
-              }
-
-              for (var i = 0; i < self.facet_counts.facet_ranges[key].counts.length; i=i+2) {                  
-                facet.counts.push({ 
-                  value: self.facet_counts.facet_ranges[key].counts[i],
-                  label: self.formatFacetValue(key, self.facet_counts.facet_ranges[key].counts[i]),
-                  count: self.facet_counts.facet_ranges[key].counts[i+1]
-                });
-              }
-
-              self.facets.push(facet);
-
-            });
-          }
-          ,function(response) {
-            $log.debug('Error:' + response.status);
-          }
-        );      
-      
-    }
-
-
     function isLicense(val){
       $log.debug('facet: ' + val);
       return val.indexOf('All') > -1;
     }
 
-    var DynamicItems = function() {
-      this.loadedPages = {};
-      /** @type {number} Total number of items. */
-      this.numItems = 0;
-
-      this.PAGE_SIZE = 50;               
-    };
-    
-    DynamicItems.prototype.getItemAtIndex = function(index) {
-      var pageNumber = Math.floor(index / this.PAGE_SIZE);
-      var page = this.loadedPages[pageNumber];
-      if (page) {
-        return page[index % this.PAGE_SIZE];
-        } else if (page !== null) {            
-        this.fetchPage_(pageNumber);
-      }
-    };
-    
-    DynamicItems.prototype.getLength = function() {
-      return self.numFound;
-    };
-    
-    DynamicItems.prototype.fetchPage_ = function(pageNumber) {
-    
-      this.loadedPages[pageNumber] = null;    
-      
-      var promise = searchService.search(self.q, pageNumber * this.PAGE_SIZE, this.PAGE_SIZE, self.sortdef, self.facet_filter);      
-      promise.then(
-        function(response) {
-          self.dynamicItems.loadedPages[pageNumber] = [];   
-          //self.docs = response.data.response.docs;
-          for (var i = 0; i < response.data.response.docs.length; i++) { 
-            response.data.response.docs[i]['pos'] = (pageNumber * self.dynamicItems.PAGE_SIZE) + i;
-            self.dynamicItems.loadedPages[pageNumber].push(response.data.response.docs[i]);
-          }
-          self.dynamicItems.numItems = response.data.response.numFound;
-          //self.numFound = response.data.response.numFound;
-          self.facet_counts = response.data.facet_counts;
-          self.facets = [];
-                
-          Object.keys(self.facet_counts.facet_fields).forEach(function(key,index) {
-            var facet = {
-              field: key,
-              label: self.facetLabels[key],
-              counts: []
-            }
-            for (var i = 0; i < self.facet_counts.facet_fields[key].length; i=i+2) {  
-              facet.counts.push({ 
-                value: self.facet_counts.facet_fields[key][i],
-                label: self.formatFacetValue(key, self.facet_counts.facet_fields[key][i]),
-                count: self.facet_counts.facet_fields[key][i+1]
-              });
-            }
-            self.facets.push(facet);
-          });
-
-          Object.keys(self.facet_counts.facet_ranges).forEach(function(key,index) {
-            var facet = {
-              field: key,
-              label: self.facetLabels[key],
-              counts: []
-            }
-            for (var i = 0; i < self.facet_counts.facet_ranges[key].counts.length; i=i+2) {                  
-              facet.counts.push({ 
-                value: self.facet_counts.facet_ranges[key].counts[i],
-                label: self.formatFacetValue(key, self.facet_counts.facet_ranges[key].counts[i]),
-                count: self.facet_counts.facet_ranges[key].counts[i+1]
-              });
-            }
-            self.facets.push(facet);
-          });
-        }
-        ,function(response) {
-          $log.debug('Error:' + response.status);
-        }
-      );              
-    };
-
-    self.dynamicItems = new DynamicItems();  
-    
-    /**
-     * Select the current avatars
-     * @param menuId
-     */
-    function selectDoc ( doc ) {
-      self.selected = angular.isNumber(doc) ? $scope.docs[doc] : doc;
-    }
-
-
-    /**
-     * Show the Contact view in the bottom sheet
-     */
-    function makeContact(selectedDoc) {
-
-        $mdBottomSheet.show({
-          controllerAs  : "vm",
-          templateUrl   : './src/search/view/preview.html',
-          controller    : [ '$mdBottomSheet', PreviewController],
-          parent        : angular.element(document.getElementById('content'))
-        }).then(function(clickedItem) {
-          $log.debug( clickedItem.name + ' clicked!');
-        });
-
-        /**
-         * User ContactSheet controller
-         */
-        function PreviewController( $mdBottomSheet ) {
-          this.doc = selectedDoc;
-          this.items = [
-            { name: 'Phone'       , icon: 'phone'       , icon_url: 'assets/svg/phone.svg'},
-            { name: 'Twitter'     , icon: 'twitter'     , icon_url: 'assets/svg/twitter.svg'},
-            { name: 'Google+'     , icon: 'google_plus' , icon_url: 'assets/svg/google_plus.svg'},
-            { name: 'Hangout'     , icon: 'hangouts'    , icon_url: 'assets/svg/hangouts.svg'}
-          ];
-          this.contactUser = function(action) {
-            // The actually contact process has not been implemented...
-            // so just hide the bottomSheet
-
-            $mdBottomSheet.hide(action);
-          };
-        }
-    }
+  
 
   }
 

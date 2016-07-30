@@ -14,7 +14,7 @@
 
       tsizeGap: tsizeGap,
 
-      search: function(q, start, rows, sortdef, facet_filter){
+      search: function(q, start, rows, sortdef, facet_filter, pt, d){
 
         var params = { 
             q: q,
@@ -35,6 +35,12 @@
             'f.tcreated.facet.range.start':'2008-01-01T00:00:00Z',
             'f.tcreated.facet.range.end':'NOW'            
         };
+
+        if(pt != '' && d >= 0){
+          params["fq"] = '{!bbox sfield=latlon}';
+          params["d"] = d;
+          params["pt"] = pt;
+        }
 
         var facets = [];
         for (var i = 0; i < facet_filter.length; i++) {
