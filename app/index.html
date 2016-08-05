@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="../node_modules/angular-material/angular-material.css"/>
     <link rel="stylesheet" href="assets/app.css"/>        
     <link rel="stylesheet" href="../node_modules/ui-leaflet/node_modules/leaflet/dist/leaflet.css"></link>
+    <link rel="stylesheet" href="../node_modules/leaflet-markercluster/MarkerCluster.css" />
+    <link rel="stylesheet" href="../node_modules/leaflet-markercluster/MarkerCluster.Default.css" />
 
     <style type="text/css">
         /**
@@ -29,7 +31,7 @@
 
 
     
-    <md-content layout="column"  >
+    <md-content layout="column" >
       
       
 <md-content >
@@ -74,31 +76,32 @@
             <md-tab label="List">
 
               <md-list >
-              <md-subheader class="md-no-sticky">{{sc.dynamicItems.numItems}} objects</md-subheader>
-              <md-virtual-repeat-container id="vertical-container">
+                <md-subheader class="md-no-sticky">{{sc.dynamicItems.numItems}} objects</md-subheader>
+                <md-virtual-repeat-container id="vertical-container">
 
-                <div md-virtual-repeat="doc in sc.dynamicItems" md-on-demand class="repeated-item" flex>
-                    <md-list-item class="md-whiteframe-1dp md-3-line md-long-text list-item" ng-click="sc.togglePreview(); sc.selectDoc = doc">                  
-                    <span class="pos">{{ doc.pos }}</span>
-                    <img ng-src="https://phaidra.univie.ac.at/preview/{{doc.pid}}///60" style="max-width:60px;" class="md-user-avatar list-item-img" alt="{{ doc.dc_title[0] }}" />
-                    <div class="md-list-item-text list-item-text" layout="column">
+                  <div md-virtual-repeat="doc in sc.dynamicItems" md-on-demand class="repeated-item" flex>
+                      <md-list-item class="md-whiteframe-1dp md-3-line md-long-text list-item" ng-click="sc.docClick(doc)">                  
+                      <span class="pos">{{ doc.pos }}</span>
+                      <img ng-src="https://phaidra.univie.ac.at/preview/{{doc.pid}}///60" style="max-width:60px;" class="md-user-avatar list-item-img" alt="{{ doc.dc_title[0] }}" />
+                      <div class="md-list-item-text list-item-text" layout="column">
 
-                      <h3>{{ doc.dc_title[0] }}</h3>
-                      
-                      <span class="md-body-2"><span ng-repeat="aut in doc.dc_creator track by $index">{{aut}}<span ng-if="!$last">; </span></span></span>
-                      <span class="md-body-2"><span ng-repeat="cont in doc.dc_contributor track by $index">{{cont}}<span ng-if="!$last">; </span></span></span>
-                      <span class="md-caption grey">https://phaidra.univie.ac.at/{{ doc.pid }}</span>
+                        <h3 class="md-title">{{ doc.dc_title[0] }}</h3>
+                        <span class="md-caption grey">https://phaidra.univie.ac.at/{{ doc.pid }}</span>
+                        <span class="md-body-2"><span ng-repeat="aut in doc.dc_creator track by $index">{{aut}}<span ng-if="!$last">; </span></span></span>
+                        <span class="md-body-2"><span ng-repeat="cont in doc.dc_contributor track by $index">{{cont}}<span ng-if="!$last">; </span></span></span>
+                        
 
-                      <span class="md-body-1">{{ doc.dc_description[0] }}</span>
-                    </div>
-                    </md-list-item>
-                </div>
-              </md-virtual-repeat-container>
+                        <span class="md-body-1">{{ doc.dc_description[0] }}</span>
+                      </div>
+                      </md-list-item>
+                  </div>
+                </md-virtual-repeat-container>
               </md-list>
 
               </md-tab>
             <md-tab label="Map" md-on-select="sc.refreshMap()">
-              <leaflet width="100%" height="620px" markers="sc.markers" lf-center="sc.center" ></leaflet>
+              <leaflet width="100%" height="620px" markers="sc.markers" layers="sc.layers" event-broadcast="sc.events" id="searchmap"></leaflet>
+              <p>Found {{sc.spatialNumFound}} objects with coordinates in the visible area. <span md-colors="{color:'warn'}" ng-show="sc.spatialNumFound > sc.spatialNumFoundLimit">Only first {{sc.spatialNumFoundLimit}} objects will be shown on map. Please zoom in to restrict the search scope!</span></p>
             </md-tab>
              
           </md-tabs>
@@ -108,14 +111,119 @@
 
         <md-sidenav class="md-sidenav-right md-whiteframe-4dp" md-component-id="preview">
         
-            <md-content ng-controller="PreviewController as pc" layout-padding>
+            <md-content layout="column" layout-align="space-between" layout-padding layout-wrap>
+        
+                <div layout="row" layout-align="center none">                  
+                  <img class="md-whiteframe-4dp" ng-src="https://phaidra.univie.ac.at/preview/{{sc.selectDoc.pid}}" alt="{{ sc.selectDoc.dc_title[0] }}" />
+                </div>
               
-                <center><img class="md-whiteframe-1dp" ng-src="https://phaidra.univie.ac.at/preview/{{sc.selectDoc.pid}}" alt="{{ sc.selectDoc.dc_title[0] }}" /></center>
-                <h3>{{ sc.selectDoc.dc_title[0] }}</h3>
-              
-              <md-button ng-click="pc.close()" class="md-primary">Close</md-button>
+                <div layout="row" layout-align="space-around center">  
+                  <md-button class="md-primary" ng-href="https://phaidra.univie.ac.at/{{sc.selectDoc.pid}}" target="_blank">Open detail page</md-button>                  
+                </div>
 
+                <div layout="row" layout-align="space-around start" ng-if="sc.selectDoc.dc_identifier.length > 0">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Identifier</p>
+                  </div>
+                  <div flex="60">                                            
+                    <p class="md-body-1" ng-repeat="v in sc.selectDoc.dc_identifier">{{v}}</p>                    
+                  </div>
+                </div>
+
+                <div layout="row" layout-align="space-around center">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Title</p>
+                  </div>
+                  <div flex="60">
+                    <p class="md-headline">{{sc.selectDoc.dc_title[0]}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around start" ng-repeat="role in sc.getSelectDocRoles()">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">{{role.label}}</p>
+                  </div>
+                  <div flex="60">                                            
+                    <p class="md-body-2" ng-repeat="name in role.names track by $index">{{name}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around start" ng-if="sc.selectDoc.dc_description.length > 0">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Description</p>
+                  </div>
+                  <div flex="60">                                            
+                    <p class="md-body-1" ng-repeat="v in sc.selectDoc.dc_description">{{v}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around start" ng-if="sc.selectDoc.dc_rights.length > 0">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Rights</p>
+                  </div>
+                  <div flex="60">                                            
+                    <p class="md-body-1" ng-repeat="v in sc.selectDoc.dc_rights">{{v}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around start">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Resource type</p>
+                  </div>
+                  <div flex="60">                                            
+                    <p class="md-body-1">{{sc.selectDoc.resourcetype}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around start">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Owner</p>
+                  </div>
+                  <div flex="60">                                            
+                    <p class="md-body-1">{{sc.selectDoc.owner}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around start" ng-if="sc.selectDoc.dc_subject_eng.length > 0">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Subject</p>
+                  </div>
+                  <div flex="60">                                            
+                    <p class="md-body-1" ng-repeat="v in sc.selectDoc.dc_subject_eng">{{v}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around start" ng-if="sc.selectDoc.ispartof.length > 0">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Is part of</p>
+                  </div>
+                  <div flex="60">                                            
+                    <p class="md-body-1" ng-repeat="v in sc.selectDoc.ispartof"><md-button class="md-primary tolowercase" ng-click="sc.addFacet('ispartof', v)">{{v}}</md-button></p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around center">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Created</p>
+                  </div>
+                  <div flex="60">
+                    <p class="md-body-1">{{sc.selectDoc.created | date:'dd.MM.yyyy HH:mm:ss'}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around center">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Modified</p>
+                  </div>
+                  <div flex="60">
+                    <p class="md-body-1">{{sc.selectDoc.modified | date:'dd.MM.yyyy HH:mm:ss'}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around center" ng-if="sc.selectDoc.size > 0">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Size</p>
+                  </div>
+                  <div flex="60">
+                    <p class="md-body-1">{{sc.selectDoc.size | bytes}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around start" ng-if="sc.selectDoc.latlon">
+                  <leaflet ng-if="sc.selectDoc.latlon" height="300px" width="100%" markers="sc.previewMarkers" id="previewmap"></leaflet>
+                  <!--<md-button class="md-primary" ng-click="sc.refreshPreviewMap()" >Map</md-button>-->
+                </div>
             </md-content>
+            <md-button ng-click="sc.closeSidenav()" class="md-primary">Close</md-button>
           </md-sidenav>
 
     </section>
@@ -128,7 +236,7 @@
     <script type="text/javascript" src="../node_modules/ui-leaflet/node_modules/angular-simple-logger/dist/angular-simple-logger.min.js"></script>
     <script type="text/javascript" src="../node_modules/ui-leaflet/node_modules/leaflet/dist/leaflet.js"></script>
     <script type="text/javascript" src="../node_modules/ui-leaflet/dist/ui-leaflet.min.js"></script>
-    
+    <script type="text/javascript" src="../node_modules/leaflet-markercluster/leaflet.markercluster.js"></script>
 
 
     <script src="./src/search/Search.js"></script>

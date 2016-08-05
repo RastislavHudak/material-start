@@ -1,8 +1,5 @@
 (function(){
 
-
-
-
   angular
        .module('search')
        .filter('bytes', function() {
@@ -20,39 +17,12 @@
           }
        })
        .controller('SearchController', [
-          '$scope', 'searchService', '$mdSidenav', '$mdBottomSheet', '$timeout', '$log', '$filter', 'leafletData', 'leafletBoundsHelpers',
+          '$scope', 'searchService', '$mdSidenav', '$mdBottomSheet', '$timeout', '$log', '$filter', 'leafletData', 'leafletBoundsHelpers', 'leafletMapEvents',
           SearchController
-       ])
-       .controller('PreviewController', [
-          '$mdSidenav', '$timeout', '$log',
-          PreviewController
        ]);
 
 
-  function PreviewController( $mdSidenav, $mdBottomSheet, $timeout, $log ) {
-    var self = this;
-    self.close   = close;
-
-    function close() {
-      $mdSidenav('preview').close()
-        .then(function () {
-      
-      });
-    }
-
-   
-
-   
-  }
-
-  /**
-   * Main Controller for the Angular Material Starter App
-   * @param $scope
-   * @param $mdSidenav
-   * @param avatarsService
-   * @constructor
-   */
-  function SearchController( $scope, searchService, $mdSidenav, $mdBottomSheet, $timeout, $log, $filter, leafletData, leafletBoundsHelpers ) {
+  function SearchController( $scope, searchService, $mdSidenav, $mdBottomSheet, $timeout, $log, $filter, leafletData, leafletBoundsHelpers, leafletMapEvents ) {
     var self = this;
 
     self.togglePreview = buildToggler('preview');
@@ -61,18 +31,15 @@
     };
 
     self.q = '';
-    self.selected     = null;
-    self.docs        = [ ];
     self.search  = search;
     self.enterSearch = enterSearch;
     self.numFound = 0;
     self.start = 0;
     self.rows = 20;
     self.sortdef = '';    
-    self.facet_counts = null;
+    self.facet_counts = null;    
     self.facets = [];
     self.facet_filter = [];
-    self.selectedFilter = null;
     self.filterSearchText = null;
     self.addFacet = addFacet;
     self.getFacetFilterLabel = getFacetFilterLabel;
@@ -81,33 +48,108 @@
     self.removeFacetFilter = removeFacetFilter;  
     self.refreshMap = refreshMap;
     self.searchSpatial = searchSpatial;
+    self.spatialDocs = [];
+    self.markers = [];
     self.spatialNumFound = 0;
-    self.center = {
-      lat: 48.208384,
-      lng: 16.373464,
-      zoom: 4
-    }
-    self.pt = self.center.lat + ',' + self.center.lng;
-    self.d = 4000;
+    self.pt = null;
+    self.d = null;
+    self.spatialNumFoundLimit = 500;
+    self.selectDoc = null;
+    self.getSelectDocRoles = getSelectDocRoles;
+    self.roles = {};
+    self.getSelectDocMarkers = [];
+    self.docClick = docClick;
+    self.refreshPreviewMap = refreshPreviewMap;
+    self.closeSidenav = closeSidenav;
+    self.selectDocByPid = selectDocByPid;
 
-    function refreshMap (){
-      leafletData.getMap().then(function(map) {
+    function closeSidenav() {
+      $mdSidenav('preview').close();
+    }
+
+    function docClick(doc){
+      self.togglePreview();      
+      self.selectDoc = doc;       
+      self.previewMarkers = [];
+      if(doc.latlon){
+        var latlon = doc.latlon.split(',');
+        self.previewMarkers.push({          
+          lat: parseFloat(latlon[0]),
+          lng: parseFloat(latlon[1]),
+          focus: true,
+          draggable: false
+        });   
+      }
+      leafletData.getMap('previewmap').then(function(map) {        
         map.invalidateSize();   
-        self.searchSpatial();    
+        map.setView(L.latLng(latlon[0], latlon[1]), 6);                      
       });      
     }
 
-    self.markers = {};
-    /*
-      m1: {
-        lat: 59.91,
-        lng: 10.75,
-        message: "I want to travel here!",
-        focus: true,
-        draggable: false
+    function refreshPreviewMap(){
+      leafletData.getMap('previewmap').then(function(map) {        
+        map.invalidateSize();                        
+      });      
+    }
+
+    function getSelectDocRoles () {
+      var type = ['pers', 'corp'];
+      if(self.selectDoc){
+        if(self.roles[self.selectDoc.pid]){
+          return self.roles[self.selectDoc.pid];
+        }else{
+          self.roles[self.selectDoc.pid] = {};
+          for(var p in self.selectDoc) {
+            if(self.selectDoc.hasOwnProperty(p)){
+              for (var i = 0; i < type.length; i++) {
+                var bibrolesstr = 'bib_roles_' + type[i] + '_';
+                if(p.startsWith(bibrolesstr)){
+                  var role = p.substr(bibrolesstr.length);
+
+                  if(!self.roles[self.selectDoc.pid][role]){
+                    self.roles[self.selectDoc.pid][role] = {};
+                  }
+                  if(!self.roles[self.selectDoc.pid][role]['names']){
+                    self.roles[self.selectDoc.pid][role]['names'] = [];
+                  }
+                  for (var j = 0; j < self.selectDoc[p].length; j++) {
+                    self.roles[self.selectDoc.pid][role]['names'].push(self.selectDoc[p][j]);
+                  }
+                  
+                  self.roles[self.selectDoc.pid][role]['label'] = searchService.getMarcRoleLabel(role);
+                }
+              }
+            }
+          }
+        }
       }
     }
-*/
+
+    $scope.$on('leafletDirectiveMap.moveend', function(event){
+      leafletData.getMap('searchmap').then(function(map) {        
+        self.searchSpatial(map);                  
+      });      
+    });
+
+/* This unfortunately returns wrong model/marker from the event
+    $scope.$on('leafletDirectiveMarker.searchmap.click', function(event, args, model){      
+      leafletData.getMarkers('searchmap').then(function(markers) {  
+        for (var i = 0; i < self.spatialDocs.length; i++) {          
+          if(self.spatialDocs[i].pid == markers[args.modelName].options.pid){
+            self.docClick(self.spatialDocs[i]);
+          }        
+        }
+      });
+    });
+*/      
+
+    function selectDocByPid (pid) {
+      for (var i = 0; i < self.spatialDocs.length; i++) {          
+        if(self.spatialDocs[i].pid == pid){
+          self.docClick(self.spatialDocs[i]);
+        }        
+      }
+    }
 
     self.bytesFilter = $filter('bytes');
     self.dateFilter = $filter('date');
@@ -132,6 +174,13 @@
       interactiveresource: "Resource",
       sound: "Sound"
     };
+
+    function refreshMap (){
+      leafletData.getMap('searchmap').then(function(map) {        
+        map.invalidateSize();        
+        self.searchSpatial(map);                  
+      });      
+    }
 
     var DynamicItems = function() {
       this.loadedPages = {};
@@ -163,13 +212,11 @@
       promise.then(
         function(response) {
           self.dynamicItems.loadedPages[pageNumber] = [];   
-          //self.docs = response.data.response.docs;
           for (var i = 0; i < response.data.response.docs.length; i++) { 
             response.data.response.docs[i]['pos'] = (pageNumber * self.dynamicItems.PAGE_SIZE) + i;
             self.dynamicItems.loadedPages[pageNumber].push(response.data.response.docs[i]);
           }
           self.dynamicItems.numItems = response.data.response.numFound;
-          //self.numFound = response.data.response.numFound;
           self.facet_counts = response.data.facet_counts;
           self.facets = [];
                 
@@ -212,30 +259,55 @@
     };
     
     function search() {
-      self.dynamicItems.fetchPage_(0);
+      self.dynamicItems.fetchPage_(0);      
+      self.refreshMap();
     }
     self.dynamicItems = new DynamicItems(); 
 
-    function searchSpatial() {        
-      var limit = 10;
-      var promise = searchService.search(self.q, 0, limit, null, self.facet_filter, self.pt, self.d);    
+    function searchSpatial(map) {     
+
+      var size = map.getSize();        
+      // get map center
+      var center = map.getCenter();
+      // get the point at the edge of the map most distant to center
+      var bounds = map.getBounds();
+
+      /*
+      var edge;
+      if(size.x > size.y){          
+        var lng = bounds.getEast();
+        edge = L.latLng(center.lat, lng);
+      }else{
+        var lat = bounds.getNorth();
+        edge = L.latLng(lat, center.lng);
+      }
+      // calculate distance of center to edge
+      self.d = center.distanceTo(edge)/1000;  
+      self.pt = center.lat+','+center.lng;
+      */
+
+      self.sw = bounds.getSouthWest();
+      self.ne = bounds.getNorthEast();
+
+      var promise = searchService.search(self.q, 0, self.spatialNumFoundLimit, null, self.facet_filter, self.sw, self.ne);    
       promise.then(
         function(response) {
-          self.markers = {}; 
-          for (var i = 0; i < response.data.response.docs.length; i++) { 
-            var doc = response.data.response.docs[i];
-            self.markers[i] = {
-              lat: doc.latlon_0_coordinate,
-              lng: doc.latlon_1_coordinate,
-              message: doc.dc_title[0],
+          self.markers = []; 
+          self.spatialNumFound = response.data.response.numFound;          
+          self.spatialDocs = response.data.response.docs;
+          for (var i = 0; i < response.data.response.docs.length; i++) {             
+            var doc = response.data.response.docs[i];            
+            var latlon = doc.latlon.split(',');
+            self.markers.push({
+              layer: 'searchresults',
+              lat: parseFloat(latlon[0]),
+              lng: parseFloat(latlon[1]),
+              getMessageScope: function () { return $scope; },
+              message: '<a ng-click="sc.selectDocByPid(\'' + doc.pid + '\')">' + doc.dc_title[0] + '</a>',
               focus: false,
               draggable: false
-            }            
-          }
-          self.spatialNumFound = response.data.response.numFound;     
-          if(self.spatialNumFound > limit){
-            alert('Too many objects were found! Please zoom your map.');
-          }
+            });       
+          }                
         }
         ,function(response) {
           $log.debug('Error:' + response.status);
@@ -243,8 +315,40 @@
       );  
     }
 
-    self.q = 'byzanz';
+    self.q = '*:*';
     self.search();
+    leafletData.getMap('searchmap').then(function(map) {       
+      map.setView(L.latLng(48.208384, 16.373464), 6);      
+    });
+
+    self.events = {
+      map: {
+        enable: ['moveend', 'popupopen'],
+        logic: 'emit'
+      },
+      marker: {
+        enable: [],
+        logic: 'emit'
+      }
+    };
+
+    self.layers = {
+      baselayers: {
+         osm: {
+          name: 'OpenStreetMap',
+          type: 'xyz',
+          url: 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        }
+      },
+      overlays: {
+        searchresults: {
+          name: "Search results",
+          type: "markercluster",
+          visible: true
+        }
+      }
+    }
+    
 
     function getFacetFilterLabel(ff){
       return self.formatFacetValue(ff.id, ff.value);      
@@ -256,7 +360,11 @@
         $mdSidenav(navID)
           .toggle()
           .then(function () {
-            
+            leafletData.getMap('previewmap').then(function(map) {        
+              setTimeout(function() {
+                map.invalidateSize();     
+              }, 1500);                    
+            }); 
           });
       }
     }
@@ -283,6 +391,9 @@
     }
 
     function formatFacetValue(field, value){
+      if(field == 'ispartof'){
+        return 'Collection: '+value;
+      }
       if(field == 'tcreated'){
         return self.dateFilter(value, "yyyy");
       }

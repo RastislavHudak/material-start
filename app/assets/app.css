@@ -55,3 +55,11 @@ md-list-item, md-list-item .md-list-item-inner {
   right: 10px;
   color: rgba(0, 0, 0, 0.41);
 }
+
+.preview-label {
+  float: right;
+}
+
+.tolowercase {
+    text-transform: lowercase;
+}
