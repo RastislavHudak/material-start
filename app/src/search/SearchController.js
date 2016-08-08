@@ -79,11 +79,11 @@
           focus: true,
           draggable: false
         });   
-      }
-      leafletData.getMap('previewmap').then(function(map) {        
-        map.invalidateSize();   
-        map.setView(L.latLng(latlon[0], latlon[1]), 6);                      
-      });      
+        leafletData.getMap('previewmap').then(function(map) {        
+          map.invalidateSize();   
+          map.setView(L.latLng(latlon[0], latlon[1]), 6);                      
+        }); 
+      }           
     }
 
     function refreshPreviewMap(){
@@ -315,7 +315,7 @@
       );  
     }
 
-    self.q = '*:*';
+    self.q = '';
     self.search();
     leafletData.getMap('searchmap').then(function(map) {       
       map.setView(L.latLng(48.208384, 16.373464), 6);      

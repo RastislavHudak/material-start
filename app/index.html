@@ -108,27 +108,31 @@
             
         </md-content>
 
+        <md-sidenav class="md-sidenav-right md-whiteframe-4dp preview" md-component-id="preview">
+        
+            <md-content layout="column" layout-align="space-between" layout-padding layout-wrap class="sidenavbg">            
 
-        <md-sidenav class="md-sidenav-right md-whiteframe-4dp" md-component-id="preview">
-        
-            <md-content layout="column" layout-align="space-between" layout-padding layout-wrap>
-        
+                <div layout="row" layout-align="end center">
+                  <p flex class="md-headline grey" >https://phaidra.univie.ac.at/{{sc.selectDoc.pid}}</p>
+                  
+                  <md-button class="md-fab md-mini md-primary" ng-if="sc.selectDoc.resourcetype == 'map'" ng-href="https://phaidra.univie.ac.at/imageserver/{{sc.selectDoc.pid}}" target="_blank">
+                    <md-icon>zoom_in</md-icon>
+                  </md-button>
+                  <md-button class="md-fab md-mini md-primary" ng-href="https://fedora.phaidra.univie.ac.at/fedora/get/{{sc.selectDoc.pid}}/bdef:Content/download">
+                    <md-icon>get_app</md-icon>
+                  </md-button>
+                  <md-button class="md-fab md-mini md-primary" ng-href="https://phaidra.univie.ac.at/{{sc.selectDoc.pid}}" target="_blank">
+                    <md-icon>create</md-icon>
+                  </md-button>     
+                  <md-button class="md-fab md-mini" aria-label="Close" ng-click="sc.closeSidenav()">
+                      <md-icon>close</md-icon>
+                  </md-button>                         
+                
+                </div>
+                
                 <div layout="row" layout-align="center none">                  
                   <img class="md-whiteframe-4dp" ng-src="https://phaidra.univie.ac.at/preview/{{sc.selectDoc.pid}}" alt="{{ sc.selectDoc.dc_title[0] }}" />
-                </div>
-              
-                <div layout="row" layout-align="space-around center">  
-                  <md-button class="md-primary" ng-href="https://phaidra.univie.ac.at/{{sc.selectDoc.pid}}" target="_blank">Open detail page</md-button>                  
-                </div>
-
-                <div layout="row" layout-align="space-around start" ng-if="sc.selectDoc.dc_identifier.length > 0">   
-                  <div flex="20" layout-align="center end">
-                    <p class="md-body-1 preview-label">Identifier</p>
-                  </div>
-                  <div flex="60">                                            
-                    <p class="md-body-1" ng-repeat="v in sc.selectDoc.dc_identifier">{{v}}</p>                    
-                  </div>
-                </div>
+                </div>                  
 
                 <div layout="row" layout-align="space-around center">   
                   <div flex="20" layout-align="center end">
@@ -144,6 +148,14 @@
                   </div>
                   <div flex="60">                                            
                     <p class="md-body-2" ng-repeat="name in role.names track by $index">{{name}}</p>                    
+                  </div>
+                </div>
+                <div layout="row" layout-align="space-around start" ng-if="sc.selectDoc.dc_identifier.length > 0">   
+                  <div flex="20" layout-align="center end">
+                    <p class="md-body-1 preview-label">Identifier</p>
+                  </div>
+                  <div flex="60">                                            
+                    <p class="md-body-1" ng-repeat="v in sc.selectDoc.dc_identifier">{{v}}</p>                    
                   </div>
                 </div>
                 <div layout="row" layout-align="space-around start" ng-if="sc.selectDoc.dc_description.length > 0">   
@@ -178,9 +190,9 @@
                     <p class="md-body-1">{{sc.selectDoc.owner}}</p>                    
                   </div>
                 </div>
-                <div layout="row" layout-align="space-around start" ng-if="sc.selectDoc.dc_subject_eng.length > 0">   
+                <div layout="row" layout-align="space-around none" ng-if="sc.selectDoc.dc_subject_eng.length > 0">   
                   <div flex="20" layout-align="center end">
-                    <p class="md-body-1 preview-label">Subject</p>
+                    <p class="md-body-1 preview-label ">Subject</p>
                   </div>
                   <div flex="60">                                            
                     <p class="md-body-1" ng-repeat="v in sc.selectDoc.dc_subject_eng">{{v}}</p>                    
@@ -222,8 +234,7 @@
                   <leaflet ng-if="sc.selectDoc.latlon" height="300px" width="100%" markers="sc.previewMarkers" id="previewmap"></leaflet>
                   <!--<md-button class="md-primary" ng-click="sc.refreshPreviewMap()" >Map</md-button>-->
                 </div>
-            </md-content>
-            <md-button ng-click="sc.closeSidenav()" class="md-primary">Close</md-button>
+            </md-content>            
           </md-sidenav>
 
     </section>

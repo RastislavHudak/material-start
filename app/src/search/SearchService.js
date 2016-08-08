@@ -95,6 +95,10 @@
 
       search: function(q, start, rows, sortdef, facet_filter, sw, ne){
 
+        if(q == ''){
+          q = '*:*';
+        }
+
         var params = { 
             q: q,
             defType: 'edismax',
