@@ -108,8 +108,8 @@
             rows: rows,
             sort: sortdef,
             facet: true,
-            'facet.mincount':1,
-            'facet.field': ['resourcetype','dc_license'],
+            'facet.mincount':1,            
+            'facet.field': ['resourcetype','dc_license', 'datastreams'],
             'facet.range': ['tsize','tcreated'],
             'f.tsize.facet.range.gap':'+' + tsizeGap,
             'f.tsize.facet.range.start':0,
@@ -135,10 +135,11 @@
         for (var i = 0; i < facet_filter.length; i++) {
           var id = facet_filter[i].id;
           var query = facet_filter[i].query;
+          var sign = facet_filter[i].sign;
           if(id != 'tcreated' && id != 'tsize'){
             query = '"' + query + '"';
           }
-          facets.push(id + ':' + query);
+          facets.push((sign ? sign : '') + id + ':' + query);
         }
 
         var facets_str = facets.join(' AND ');

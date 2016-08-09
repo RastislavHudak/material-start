@@ -155,6 +155,7 @@
     self.dateFilter = $filter('date');
 
     self.facetLabels = {
+      datastreams: "Access",
       resourcetype: "Resource type",
       dc_license: "License",
       tcreated: "Created",
@@ -221,19 +222,53 @@
           self.facets = [];
                 
           Object.keys(self.facet_counts.facet_fields).forEach(function(key,index) {
+            var pos = index;
+            if(key == 'datastreams'){ 
+              pos = -1;
+            }
             var facet = {
               field: key,
               label: self.facetLabels[key],
-              counts: []
+              counts: [],
+              pos: pos
             }
-            for (var i = 0; i < self.facet_counts.facet_fields[key].length; i=i+2) {  
-              facet.counts.push({ 
-                value: self.facet_counts.facet_fields[key][i],
-                label: self.formatFacetValue(key, self.facet_counts.facet_fields[key][i]),
-                count: self.facet_counts.facet_fields[key][i+1]
-              });
+
+            if(key == 'datastreams'){ 
+              var access_filter_on = 0;     
+              for (var i = 0; i < self.facet_filter.length; i++) {
+                if(self.facet_filter[i].id == 'datastreams'){                  
+                  access_filter_on = 1;
+                  break;
+                }
+              }
+              if(!access_filter_on){
+                for (var i = 0; i < self.facet_counts.facet_fields[key].length; i=i+2) {  
+                  if(self.facet_counts.facet_fields[key][i] == 'POLICY'){
+                    facet.counts.push({ 
+                      value: 'restricted',
+                      label: self.formatFacetValue(key, 'restricted'),
+                      count: self.facet_counts.facet_fields[key][i+1]
+                    });
+                    facet.counts.push({ 
+                      value: 'unrestricted',
+                      label: self.formatFacetValue(key, 'unrestricted'),
+                      count: response.data.response.numFound-self.facet_counts.facet_fields[key][i+1]
+                    });
+                  }
+                }
+                self.facets.push(facet);
+              }
+            }else{
+              for (var i = 0; i < self.facet_counts.facet_fields[key].length; i=i+2) {  
+                facet.counts.push({ 
+                  value: self.facet_counts.facet_fields[key][i],
+                  label: self.formatFacetValue(key, self.facet_counts.facet_fields[key][i]),
+                  count: self.facet_counts.facet_fields[key][i+1]
+                });
+              }
+              self.facets.push(facet);
             }
-            self.facets.push(facet);
+            
           });
 
           Object.keys(self.facet_counts.facet_ranges).forEach(function(key,index) {
@@ -251,6 +286,8 @@
             }
             self.facets.push(facet);
           });
+
+          self.facets.sort(function(a,b) {return (a.pos > b.pos) ? 1 : ((b.pos > a.pos) ? -1 : 0);} ); 
         }
         ,function(response) {
           $log.debug('Error:' + response.status);
@@ -391,6 +428,14 @@
     }
 
     function formatFacetValue(field, value){
+      if(field == 'datastreams'){
+        if(value == 'restricted'){
+          return 'Restricted access';      
+        }
+        if(value == 'unrestricted'){
+          return 'Unestricted access';
+        }
+      }
       if(field == 'ispartof'){
         return 'Collection: '+value;
       }
@@ -408,7 +453,7 @@
 
     function addFacet(field, value) {
 
-      var query;
+      var query;      
       if(field == 'tcreated'){
         //2008-01-01T00:00:00Z
          query = '[' + value + ' TO ' + value + '+1YEAR]';
@@ -420,17 +465,35 @@
         }  
       }   
 
+      var sign = null;
+      if(field == 'datastreams'){
+        if(value == 'restricted'){
+          query = 'POLICY'
+        }
+        if(value == 'unrestricted'){
+          query = 'POLICY'
+          sign = '-';
+        }
+      }
+
       var found = 0;
       for (var i = 0; i < self.facet_filter.length; i++) {
         if(self.facet_filter[i].id == field){
           self.facet_filter[i].query = query;
           self.facet_filter[i].value = value;
+          if(sign){
+            self.facet_filter[i].sign = sign;
+          }
           found = 1;
         }
       }
 
       if(!found){
-        self.facet_filter.push({ id: field, query: query, value: value });
+        if(sign){
+          self.facet_filter.push({ id: field, query: query, value: value, sign: sign });
+        }else{
+          self.facet_filter.push({ id: field, query: query, value: value });
+        }
       }
 
       self.search();
