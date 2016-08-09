@@ -7,7 +7,44 @@
 
     var solr = 'http://app01.cc.univie.ac.at:8983/solr/phaidra/select';
 
-    var tsizeGap = 104857600;//20971520;
+    //var tsizeGap = 104857600;
+
+    var facetQueries = [ 
+      { 
+        label: "Size",
+        queries: 
+         [
+          {
+            query: 'tsize:[0 TO 10485760]',
+            label: '< 10MB'
+          },
+          {
+            query: 'tsize:[10485760 TO 52428800]',
+            label: '10MB - 50MB'
+          },
+          {
+            query: 'tsize:[52428800 TO 104857600]',
+            label: '50MB - 100MB'
+          },
+          {
+            query: 'tsize:[104857600 TO 209715200]',
+            label: '100MB - 200MB'
+          },
+          {
+            query: 'tsize:[209715200 TO 524288000]',
+            label: '200MB - 500MB'
+          },
+          {
+            query: 'tsize:[524288000 TO 1073741824]',
+            label: '500MB - 1GB'
+          },
+          {
+            query: 'tsize:[1073741824 TO *]',
+            label: '> 1GB'
+          }
+        ]
+      }
+    ];
 
     var marcRoles = {
       
@@ -85,9 +122,11 @@
 
     return {
 
-      tsizeGap: tsizeGap,
+      //tsizeGap: tsizeGap,
 
       marcRoles: marcRoles,
+
+      facetQueries: facetQueries,
 
       getMarcRoleLabel: function(r){
         return marcRoles[r] ? marcRoles[r] : r;        
@@ -110,13 +149,24 @@
             facet: true,
             'facet.mincount':1,            
             'facet.field': ['resourcetype','dc_license', 'datastreams'],
-            'facet.range': ['tsize','tcreated'],
-            'f.tsize.facet.range.gap':'+' + tsizeGap,
-            'f.tsize.facet.range.start':0,
-            'f.tsize.facet.range.end':21474836480,
+            'facet.range': ['tcreated'],
+            //'facet.range': ['tsize','tcreated'],
+            //'f.tsize.facet.range.gap':'+' + tsizeGap,
+            //'f.tsize.facet.range.start':0,
+            //'f.tsize.facet.range.end':21474836480,
             'f.tcreated.facet.range.gap':'+1YEAR',
             'f.tcreated.facet.range.start':'2008-01-01T00:00:00Z',
-            'f.tcreated.facet.range.end':'NOW'            
+            'f.tcreated.facet.range.end':'NOW'
+            /*,
+            'facet.query': [
+              'tsize:[0 TO 10485760]', 
+              'tsize:[10485760 TO 52428800]', 
+              'tsize:[52428800 TO 104857600]',
+              'tsize:[104857600 TO 209715200]',
+              'tsize:[209715200 TO 524288000]',
+              'tsize:[524288000 TO 1073741824]',
+              'tsize:[1073741824 TO *]'
+            ]*/
         };
 
 /*
@@ -133,18 +183,29 @@
 
         var facets = [];
         for (var i = 0; i < facet_filter.length; i++) {
-          var id = facet_filter[i].id;
-          var query = facet_filter[i].query;
-          var sign = facet_filter[i].sign;
-          if(id != 'tcreated' && id != 'tsize'){
-            query = '"' + query + '"';
+          if(facet_filter[i].id){
+            var id = facet_filter[i].id;
+            var query = facet_filter[i].query;
+            var sign = facet_filter[i].sign;
+            if(id != 'tcreated' && id != 'tsize'){
+              query = '"' + query + '"';
+            }
+            facets.push((sign ? sign : '') + id + ':' + query);
+          }else{
+            facets.push(facet_filter[i].query);
           }
-          facets.push((sign ? sign : '') + id + ':' + query);
         }
 
         var facets_str = facets.join(' AND ');
         if(facets_str != '' && facets_str != ' '){
           params.q += ' AND ' + facets_str;
+        }
+
+        params['facet.query'] = [];
+        for (var i = 0; i < facetQueries.length; i++) {
+          for (var j = 0; j < facetQueries[i].queries.length; j++) {
+            params['facet.query'].push(facetQueries[i].queries[j].query);
+          }          
         }
 
         return $http({

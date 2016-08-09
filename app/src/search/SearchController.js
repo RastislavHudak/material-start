@@ -267,7 +267,7 @@
                 });
               }
               self.facets.push(facet);
-            }
+            }            
             
           });
 
@@ -286,6 +286,23 @@
             }
             self.facets.push(facet);
           });
+
+          for (var i = 0; i < searchService.facetQueries.length; i++) { 
+            var facet = {
+              label: searchService.facetQueries[i].label,
+              counts: []
+            }
+            for (var j = 0; j < searchService.facetQueries[i].queries.length; j++) {                  
+              if(self.facet_counts.facet_queries[searchService.facetQueries[i].queries[j].query]){
+                facet.counts.push({ 
+                  value: searchService.facetQueries[i].queries[j].query,
+                  label: searchService.facetQueries[i].queries[j].label,
+                  count: self.facet_counts.facet_queries[searchService.facetQueries[i].queries[j].query]
+                });  
+              }              
+            }
+            self.facets.push(facet);
+          }                           
 
           self.facets.sort(function(a,b) {return (a.pos > b.pos) ? 1 : ((b.pos > a.pos) ? -1 : 0);} ); 
         }
@@ -388,7 +405,20 @@
     
 
     function getFacetFilterLabel(ff){
-      return self.formatFacetValue(ff.id, ff.value);      
+      if(ff.id || ff.value){
+        return self.formatFacetValue(ff.id, ff.value);      
+      }else{
+        if(ff.query){
+          // should be facet query
+          for (var i = 0; i < searchService.facetQueries.length; i++) { 
+            for (var j = 0; j < searchService.facetQueries[i].queries.length; j++) {                  
+              if(searchService.facetQueries[i].queries[j].query == ff.query){
+                return searchService.facetQueries[i].queries[j].label;
+              }
+            }
+          }
+        }
+      }
     }
 
     function buildToggler(navID) {
@@ -453,47 +483,52 @@
 
     function addFacet(field, value) {
 
-      var query;      
-      if(field == 'tcreated'){
-        //2008-01-01T00:00:00Z
-         query = '[' + value + ' TO ' + value + '+1YEAR]';
-      }else{
-        if(field == 'tsize'){
-          query = '[' + value + ' TO ' + (value*1 + searchService.tsizeGap) + ']';
+      if(field){
+        var query;      
+        if(field == 'tcreated'){
+          //2008-01-01T00:00:00Z
+           query = '[' + value + ' TO ' + value + '+1YEAR]';
         }else{
-          query = value;    
-        }  
-      }   
+          if(field == 'tsize'){
+            query = '[' + value + ' TO ' + (value*1 + searchService.tsizeGap) + ']';
+          }else{
+            query = value;    
+          }  
+        }   
 
-      var sign = null;
-      if(field == 'datastreams'){
-        if(value == 'restricted'){
-          query = 'POLICY'
-        }
-        if(value == 'unrestricted'){
-          query = 'POLICY'
-          sign = '-';
-        }
-      }
-
-      var found = 0;
-      for (var i = 0; i < self.facet_filter.length; i++) {
-        if(self.facet_filter[i].id == field){
-          self.facet_filter[i].query = query;
-          self.facet_filter[i].value = value;
-          if(sign){
-            self.facet_filter[i].sign = sign;
+        var sign = null;
+        if(field == 'datastreams'){
+          if(value == 'restricted'){
+            query = 'POLICY'
           }
-          found = 1;
+          if(value == 'unrestricted'){
+            query = 'POLICY'
+            sign = '-';
+          }
         }
-      }
 
-      if(!found){
-        if(sign){
-          self.facet_filter.push({ id: field, query: query, value: value, sign: sign });
-        }else{
-          self.facet_filter.push({ id: field, query: query, value: value });
+        var found = 0;
+        for (var i = 0; i < self.facet_filter.length; i++) {
+          if(self.facet_filter[i].id == field){
+            self.facet_filter[i].query = query;
+            self.facet_filter[i].value = value;
+            if(sign){
+              self.facet_filter[i].sign = sign;
+            }
+            found = 1;
+          }
         }
+
+        if(!found){
+          if(sign){
+            self.facet_filter.push({ id: field, query: query, value: value, sign: sign });
+          }else{
+            self.facet_filter.push({ id: field, query: query, value: value });
+          }
+        }
+      }else{
+        // if there is no field this is a facet query
+        self.facet_filter.push({ query: value });
       }
 
       self.search();
